@@ -49,7 +49,8 @@ const footerNav = [
   { to: "/settings", label: "Settings", icon: Settings },
 ] as const;
 
-const allItems = [...nav.flatMap((g) => g.items), ...footerNav];
+type NavItem = { to: string; label: string; icon: typeof LayoutGrid };
+const allItems: NavItem[] = [...nav.flatMap((g): readonly NavItem[] => g.items), ...footerNav];
 
 function Brand() {
   return (
@@ -76,7 +77,7 @@ function NavLink({
   label: string;
   icon: typeof LayoutGrid;
   active: boolean;
-  onNavigate?: () => void;
+  onNavigate?: (() => void) | undefined;
 }) {
   return (
     <Link
@@ -96,7 +97,7 @@ function NavLink({
   );
 }
 
-function SidebarBody({ path, onNavigate }: { path: string; onNavigate?: () => void }) {
+function SidebarBody({ path, onNavigate }: { path: string; onNavigate?: (() => void) | undefined }) {
   const isActive = (to: string) => (to === "/" ? path === "/" : path.startsWith(to));
   return (
     <div className="flex h-full flex-col">
