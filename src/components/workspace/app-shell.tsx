@@ -1,5 +1,5 @@
 import { useState, type ReactNode } from "react";
-import { Link, useRouterState } from "@tanstack/react-router";
+import { Link, useLocation } from "react-router-dom";
 import {
   LayoutGrid,
   FlaskConical,
@@ -30,18 +30,22 @@ import {
 import { Kbd } from "./data";
 
 export const nav = [
-  { group: "Workspace", items: [
-    { to: "/", label: "Overview", icon: LayoutGrid },
-    { to: "/playground", label: "Playground", icon: FlaskConical },
-  ]},
-  { group: "Build", items: [
-    { to: "/knowledge", label: "Knowledge", icon: Library },
-    { to: "/tools", label: "Tools & Integrations", icon: Plug },
-    { to: "/workflows", label: "Workflows", icon: Workflow },
-  ]},
-  { group: "Observe", items: [
-    { to: "/logs", label: "Execution logs", icon: ScrollText },
-  ]},
+  {
+    group: "Workspace",
+    items: [
+      { to: "/", label: "Overview", icon: LayoutGrid },
+      { to: "/playground", label: "Playground", icon: FlaskConical },
+    ],
+  },
+  {
+    group: "Build",
+    items: [
+      { to: "/knowledge", label: "Knowledge", icon: Library },
+      { to: "/tools", label: "Tools & Integrations", icon: Plug },
+      { to: "/workflows", label: "Workflows", icon: Workflow },
+    ],
+  },
+  { group: "Observe", items: [{ to: "/logs", label: "Execution logs", icon: ScrollText }] },
 ] as const;
 
 const footerNav = [
@@ -90,14 +94,27 @@ function NavLink({
           : "text-muted-foreground hover:bg-sidebar-accent hover:text-foreground",
       )}
     >
-      {active && <span className="absolute -left-3 top-1.5 bottom-1.5 w-[2px] rounded-full bg-primary" />}
-      <Icon className={cn("size-4", active ? "text-primary" : "text-subtle-foreground group-hover:text-muted-foreground")} />
+      {active && (
+        <span className="absolute -left-3 top-1.5 bottom-1.5 w-[2px] rounded-full bg-primary" />
+      )}
+      <Icon
+        className={cn(
+          "size-4",
+          active ? "text-primary" : "text-subtle-foreground group-hover:text-muted-foreground",
+        )}
+      />
       {label}
     </Link>
   );
 }
 
-function SidebarBody({ path, onNavigate }: { path: string; onNavigate?: (() => void) | undefined }) {
+function SidebarBody({
+  path,
+  onNavigate,
+}: {
+  path: string;
+  onNavigate?: (() => void) | undefined;
+}) {
   const isActive = (to: string) => (to === "/" ? path === "/" : path.startsWith(to));
   return (
     <div className="flex h-full flex-col">
@@ -123,7 +140,10 @@ function SidebarBody({ path, onNavigate }: { path: string; onNavigate?: (() => v
         ))}
         <div className="mt-2 flex items-center justify-between px-2.5 font-mono text-2xs text-subtle-foreground">
           <span>v0.4.0-dev</span>
-          <span className="flex items-center gap-1.5"><span className="size-1.5 rounded-full bg-success" />local</span>
+          <span className="flex items-center gap-1.5">
+            <span className="size-1.5 rounded-full bg-success" />
+            local
+          </span>
         </div>
       </div>
     </div>
@@ -135,16 +155,22 @@ function WorkspaceSwitcher() {
     <div className="px-3 pt-3">
       <DropdownMenu>
         <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-surface px-2.5 py-1.5 text-left shadow-xs hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <span className="flex size-5 items-center justify-center rounded-sm bg-primary-soft font-mono text-2xs font-semibold text-primary">LS</span>
+          <span className="flex size-5 items-center justify-center rounded-sm bg-primary-soft font-mono text-2xs font-semibold text-primary">
+            LS
+          </span>
           <span className="min-w-0 flex-1">
             <span className="block truncate text-xs font-medium">Personal lab</span>
-            <span className="block truncate font-mono text-2xs text-muted-foreground">ws_lirije</span>
+            <span className="block truncate font-mono text-2xs text-muted-foreground">
+              ws_lirije
+            </span>
           </span>
           <ChevronsUpDown className="size-3.5 text-muted-foreground" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-[208px]">
           <DropdownMenuLabel className="eyebrow">Workspaces</DropdownMenuLabel>
-          <DropdownMenuItem>Personal lab <Check className="ml-auto size-3.5" /></DropdownMenuItem>
+          <DropdownMenuItem>
+            Personal lab <Check className="ml-auto size-3.5" />
+          </DropdownMenuItem>
           <DropdownMenuItem>Acme · Staging</DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem>New workspace…</DropdownMenuItem>
@@ -158,7 +184,13 @@ function TopBar({ path, onMenu }: { path: string; onMenu: () => void }) {
   const current = allItems.find((i) => (i.to === "/" ? path === "/" : path.startsWith(i.to)));
   return (
     <header className="sticky top-0 z-20 flex h-[var(--topbar-h)] items-center gap-3 border-b border-border bg-background/95 px-3 backdrop-blur-sm md:px-6">
-      <Button variant="ghost" size="icon-sm" className="lg:hidden" onClick={onMenu} aria-label="Open navigation">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        className="lg:hidden"
+        onClick={onMenu}
+        aria-label="Open navigation"
+      >
         <Menu />
       </Button>
       <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm">
@@ -170,23 +202,41 @@ function TopBar({ path, onMenu }: { path: string; onMenu: () => void }) {
         <button className="hidden h-7 w-56 items-center gap-2 rounded-md border border-border bg-surface px-2 text-xs text-subtle-foreground shadow-xs hover:border-border-strong md:flex">
           <Search className="size-3.5" />
           <span className="flex-1 text-left">Search workspace</span>
-          <Kbd>⌘</Kbd><Kbd>K</Kbd>
+          <Kbd>⌘</Kbd>
+          <Kbd>K</Kbd>
         </button>
-        <span className="hidden font-mono text-2xs text-muted-foreground sm:inline">$4.12 / $25 this month</span>
+        <span className="hidden font-mono text-2xs text-muted-foreground sm:inline">
+          $4.12 / $25 this month
+        </span>
         <DropdownMenu>
-          <DropdownMenuTrigger aria-label="Account" className="flex size-7 items-center justify-center rounded-full bg-foreground font-mono text-2xs text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <DropdownMenuTrigger
+            aria-label="Account"
+            className="flex size-7 items-center justify-center rounded-full bg-foreground font-mono text-2xs text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+          >
             LS
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end" className="w-52">
             <DropdownMenuLabel>
               <div className="text-sm">Lirije Shabani</div>
-              <div className="font-mono text-2xs font-normal text-muted-foreground">lirije@example.com</div>
+              <div className="font-mono text-2xs font-normal text-muted-foreground">
+                lirije@example.com
+              </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuItem asChild><Link to="/settings"><User className="size-3.5" /> Profile & settings</Link></DropdownMenuItem>
-            <DropdownMenuItem asChild><Link to="/design-system"><BookOpen className="size-3.5" /> Design system</Link></DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/settings">
+                <User className="size-3.5" /> Profile & settings
+              </Link>
+            </DropdownMenuItem>
+            <DropdownMenuItem asChild>
+              <Link to="/design-system">
+                <BookOpen className="size-3.5" /> Design system
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem><LogOut className="size-3.5" /> Sign out</DropdownMenuItem>
+            <DropdownMenuItem>
+              <LogOut className="size-3.5" /> Sign out
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -195,7 +245,7 @@ function TopBar({ path, onMenu }: { path: string; onMenu: () => void }) {
 }
 
 export function AppShell({ children }: { children: ReactNode }) {
-  const path = useRouterState({ select: (s) => s.location.pathname });
+  const { pathname: path } = useLocation();
   const [open, setOpen] = useState(false);
   return (
     <div className="flex min-h-screen w-full">

@@ -261,6 +261,27 @@ Prefer working locally? You need Node.js and npm — [install with nvm](https://
 ```sh
 git clone <this-repository-url>
 cd <repository-name>
-npm i
+npm install
 npm run dev
+```
+
+## Frontend architecture
+
+The frontend is a client-rendered React 19, TypeScript and Vite application.
+React Router route definitions live in `src/router.tsx`; page components live in
+`src/routes/`, and `src/main.tsx` mounts the app from `index.html`. Vite serves
+the SPA entry for local navigation. Production hosting should be configured to
+serve `index.html` for application routes such as `/workflows`.
+
+Tailwind CSS 4 is loaded through the Vite plugin and `src/styles.css`. Existing
+workspace components, shadcn/ui components, design tokens and visual guidance
+in this document remain the source of truth for UI changes.
+
+Useful commands:
+
+```sh
+npm run typecheck
+npm run lint
+npm test
+npm run build
 ```

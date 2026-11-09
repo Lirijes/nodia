@@ -56,7 +56,9 @@ export function Tr({
 
 /** Mono, muted identifier (IDs, hashes, model slugs). */
 export function Mono({ children, className }: { children: ReactNode; className?: string }) {
-  return <span className={cn("font-mono text-xs text-muted-foreground", className)}>{children}</span>;
+  return (
+    <span className={cn("font-mono text-xs text-muted-foreground", className)}>{children}</span>
+  );
 }
 
 /* ---------- Metadata list ---------- */
@@ -138,7 +140,15 @@ export function Kbd({ children }: { children: ReactNode }) {
 }
 
 /** Thin horizontal meter, e.g. token budget or quota. */
-export function Meter({ value, max, tone = "primary" }: { value: number; max: number; tone?: "primary" | "warning" }) {
+export function Meter({
+  value,
+  max,
+  tone = "primary",
+}: {
+  value: number;
+  max: number;
+  tone?: "primary" | "warning";
+}) {
   const pct = Math.min(100, (value / max) * 100);
   return (
     <div className="h-1 w-full overflow-hidden rounded-full bg-surface-sunken">
