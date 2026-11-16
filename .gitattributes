@@ -1,0 +1,18 @@
+# Normalisera alla textfiler till LF i Git och i arbetskatalogen,
+# oavsett core.autocrlf på datorn (Windows, Lovable och Docker ser samma sak).
+* text=auto eol=lf
+
+# Windows-skript behöver CRLF
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
+
+# Binärfiler – rör aldrig
+*.ico binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.woff binary
+*.woff2 binary
