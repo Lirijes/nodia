@@ -1,0 +1,51 @@
+# Frontend CI – körs vid push och Pull Requests mot main.
+# Bygger och testar koden; ingen deployment och inga hemligheter behövs.
+name: Frontend CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+# Workflowet får bara läsa koden.
+permissions:
+  contents: read
+
+# Avbryt en pågående körning om en ny push kommer till samma branch/PR.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    name: Typecheck, lint, test & build
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Node.js 22
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22 # Vite 8 kräver Node >= 22.12 (samma som Docker-imagen)
+          cache: npm
+
+      - name: Install dependencies (npm ci)
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
+
+      # Inga VITE_SUPABASE_*-variabler behövs för att bygga: klienten
+      # använder platshållare och visar ett tydligt fel om de saknas.
+      - name: Build
+        run: npm run build
