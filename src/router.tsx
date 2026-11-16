@@ -1,4 +1,4 @@
-import { Link, Outlet, type RouteObject, useLocation, useRoutes } from "react-router-dom";
+import { Link, Navigate, Outlet, type RouteObject, useLocation, useRoutes } from "react-router-dom";
 import { useEffect } from "react";
 
 import { AppShell } from "@/components/workspace/app-shell";
@@ -12,6 +12,9 @@ import WorkflowsPage from "@/routes/workflows";
 import LogsPage from "@/routes/logs";
 import SettingsPage from "@/routes/settings";
 import DesignSystemPage from "@/routes/design-system";
+import LoginPage from "@/routes/login";
+import SignupPage from "@/routes/signup";
+import { useAuth } from "@/lib/auth";
 
 const pageMetadata: Record<string, { title: string; description: string }> = {
   "/": {
@@ -41,6 +44,14 @@ const pageMetadata: Record<string, { title: string; description: string }> = {
   "/settings": {
     title: "Settings — Atelier",
     description: "Workspace, API configuration and preferences.",
+  },
+  "/login": {
+    title: "Sign in — Atelier",
+    description: "Sign in to your workspace.",
+  },
+  "/signup": {
+    title: "Create account — Atelier",
+    description: "Create an account for your workspace.",
   },
   "/design-system": {
     title: "Design system — Atelier",
@@ -89,6 +100,38 @@ function NotFoundPage() {
   );
 }
 
+function FullPageLoader() {
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background">
+      <span className="font-mono text-2xs text-muted-foreground">Loading…</span>
+    </div>
+  );
+}
+
+/** Släpper bara igenom inloggade användare; andra skickas till /login. */
+function RequireAuth() {
+  const { session, loading } = useAuth();
+  const location = useLocation();
+  if (loading) return <FullPageLoader />;
+  if (!session) {
+    return <Navigate to="/login" replace state={{ from: location.pathname }} />;
+  }
+  return <RootLayout />;
+}
+
+/** /login och /signup: redan inloggade skickas till startsidan. */
+function PublicOnly() {
+  const { session, loading } = useAuth();
+  if (loading) return <FullPageLoader />;
+  if (session) return <Navigate to="/" replace />;
+  return (
+    <>
+      <PageMetadata />
+      <Outlet />
+    </>
+  );
+}
+
 function RootLayout() {
   return (
     <TooltipProvider delayDuration={200}>
@@ -103,7 +146,14 @@ function RootLayout() {
 
 export const appRoutes: RouteObject[] = [
   {
-    element: <RootLayout />,
+    element: <PublicOnly />,
+    children: [
+      { path: "/login", element: <LoginPage /> },
+      { path: "/signup", element: <SignupPage /> },
+    ],
+  },
+  {
+    element: <RequireAuth />,
     children: [
       { path: "/", element: <HomePage /> },
       { path: "/playground", element: <PlaygroundPage /> },

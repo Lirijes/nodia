@@ -4,6 +4,7 @@ import { BrowserRouter } from "react-router-dom";
 
 import "./styles.css";
 import { AppRoutes } from "@/router";
+import { AuthProvider } from "@/lib/auth";
 import { reportLovableError } from "@/lib/lovable-error-reporting";
 
 class AppErrorBoundary extends React.Component<{ children: ReactNode }, { error: unknown }> {
@@ -53,7 +54,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
     <BrowserRouter>
       <AppErrorBoundary>
-        <AppRoutes />
+        <AuthProvider>
+          <AppRoutes />
+        </AuthProvider>
       </AppErrorBoundary>
     </BrowserRouter>
   </React.StrictMode>,

@@ -13,6 +13,8 @@ describe("App routing", () => {
     "/logs",
     "/settings",
     "/design-system",
+    "/login",
+    "/signup",
   ])("matches %s", (path) => {
     const matches = matchRoutes(appRoutes, path);
 

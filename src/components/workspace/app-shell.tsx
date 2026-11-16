@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { toast } from "sonner";
 import {
   LayoutGrid,
   FlaskConical,
@@ -28,6 +29,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Kbd } from "./data";
+import { useAuth } from "@/lib/auth";
 
 export const nav = [
   {
@@ -56,7 +58,7 @@ const footerNav = [
 type NavItem = { to: string; label: string; icon: typeof LayoutGrid };
 const allItems: NavItem[] = [...nav.flatMap((g): readonly NavItem[] => g.items), ...footerNav];
 
-function Brand() {
+export function Brand() {
   return (
     <div className="flex items-center gap-2.5">
       <div className="grid size-6 grid-cols-2 gap-[2px] rounded-sm bg-foreground p-[5px]">
@@ -181,6 +183,16 @@ function WorkspaceSwitcher() {
 }
 
 function TopBar({ path, onMenu }: { path: string; onMenu: () => void }) {
+  const { user, signOut } = useAuth();
+  const email = user?.email ?? "";
+  const initials = email.slice(0, 2).toUpperCase() || "?";
+  async function handleSignOut() {
+    try {
+      await signOut(); // RequireAuth skickar oss till /login när sessionen är borta
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Sign out failed.");
+    }
+  }
   const current = allItems.find((i) => (i.to === "/" ? path === "/" : path.startsWith(i.to)));
   return (
     <header className="sticky top-0 z-20 flex h-[var(--topbar-h)] items-center gap-3 border-b border-border bg-background/95 px-3 backdrop-blur-sm md:px-6">
@@ -213,13 +225,13 @@ function TopBar({ path, onMenu }: { path: string; onMenu: () => void }) {
             aria-label="Account"
             className="flex size-7 items-center justify-center rounded-full bg-foreground font-mono text-2xs text-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
-            LS
+            {initials}
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-52">
+          <DropdownMenuContent align="end" className="w-56">
             <DropdownMenuLabel>
-              <div className="text-sm">Lirije Shabani</div>
-              <div className="font-mono text-2xs font-normal text-muted-foreground">
-                lirije@example.com
+              <div className="text-sm">Signed in as</div>
+              <div className="truncate font-mono text-2xs font-normal text-muted-foreground">
+                {email}
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
@@ -234,7 +246,7 @@ function TopBar({ path, onMenu }: { path: string; onMenu: () => void }) {
               </Link>
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onSelect={handleSignOut}>
               <LogOut className="size-3.5" /> Sign out
             </DropdownMenuItem>
           </DropdownMenuContent>
