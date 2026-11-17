@@ -4,7 +4,7 @@ export default function ToolsPage() {
   return (
     <Page>
       <PageHeader
-        eyebrow="Atelier"
+        eyebrow="Nodia"
         title="Tools & Integrations"
         description="Connect integrations, tools and MCP servers."
       />

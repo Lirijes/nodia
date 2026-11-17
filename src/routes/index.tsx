@@ -4,7 +4,7 @@ export default function HomePage() {
   return (
     <Page>
       <PageHeader
-        eyebrow="Atelier"
+        eyebrow="Nodia"
         title="Overview"
         description="Recent activity, executions, models and knowledge in your workspace."
       />

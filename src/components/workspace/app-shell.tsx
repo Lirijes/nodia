@@ -16,6 +16,7 @@ import {
   LogOut,
   User,
   Check,
+  Plus,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -28,8 +29,17 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Kbd } from "./data";
+import { CreateWorkspaceForm } from "./create-workspace-form";
 import { useAuth } from "@/lib/auth";
+import { useWorkspace } from "@/lib/workspace-context";
 
 export const nav = [
   {
@@ -67,7 +77,7 @@ export function Brand() {
         <span className="rounded-[1px] bg-background/40" />
         <span className="rounded-[1px] bg-background" />
       </div>
-      <span className="display text-lg leading-none">Atelier</span>
+      <span className="display text-lg leading-none">Nodia</span>
     </div>
   );
 }
@@ -152,38 +162,80 @@ function SidebarBody({
   );
 }
 
+/** "Acme Lab" -> "AL", "nodia" -> "NO". */
+function workspaceInitials(name: string) {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const initials =
+    words.length >= 2 ? `${words[0]?.[0] ?? ""}${words[1]?.[0] ?? ""}` : name.trim().slice(0, 2);
+  return initials.toUpperCase() || "?";
+}
+
+const roleLabel = { owner: "Owner", member: "Member" } as const;
+
 function WorkspaceSwitcher() {
+  const { workspaces, activeWorkspace, selectWorkspace } = useWorkspace();
+  const [createOpen, setCreateOpen] = useState(false);
+  const name = activeWorkspace?.name ?? "No workspace";
+
   return (
     <div className="px-3 pt-3">
-      <DropdownMenu>
-        <DropdownMenuTrigger className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-surface px-2.5 py-1.5 text-left shadow-xs hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      {/* modal={false}: låter dialogen ta fokus direkt när menyn stängs. */}
+      <DropdownMenu modal={false}>
+        <DropdownMenuTrigger
+          aria-label={`Workspace: ${name}`}
+          className="flex w-full items-center gap-2 rounded-md border border-sidebar-border bg-surface px-2.5 py-1.5 text-left shadow-xs hover:border-border-strong focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        >
           <span className="flex size-5 items-center justify-center rounded-sm bg-primary-soft font-mono text-2xs font-semibold text-primary">
-            LS
+            {workspaceInitials(name)}
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block truncate text-xs font-medium">Personal lab</span>
-            <span className="block truncate font-mono text-2xs text-muted-foreground">
-              ws_lirije
-            </span>
+            <span className="block truncate text-xs font-medium">{name}</span>
+            {activeWorkspace && (
+              <span className="block truncate font-mono text-2xs text-muted-foreground">
+                {roleLabel[activeWorkspace.role]}
+              </span>
+            )}
           </span>
           <ChevronsUpDown className="size-3.5 text-muted-foreground" />
         </DropdownMenuTrigger>
         <DropdownMenuContent align="start" className="w-[208px]">
           <DropdownMenuLabel className="eyebrow">Workspaces</DropdownMenuLabel>
-          <DropdownMenuItem>
-            Personal lab <Check className="ml-auto size-3.5" />
-          </DropdownMenuItem>
-          <DropdownMenuItem>Acme · Staging</DropdownMenuItem>
+          {workspaces.map((workspace) => (
+            <DropdownMenuItem key={workspace.id} onSelect={() => selectWorkspace(workspace.id)}>
+              <span className="truncate">{workspace.name}</span>
+              {workspace.id === activeWorkspace?.id && (
+                <Check className="ml-auto size-3.5" aria-label="Active workspace" />
+              )}
+            </DropdownMenuItem>
+          ))}
           <DropdownMenuSeparator />
-          <DropdownMenuItem>New workspace…</DropdownMenuItem>
+          <DropdownMenuItem onSelect={() => setCreateOpen(true)}>
+            <Plus className="size-3.5" /> New workspace…
+          </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>New workspace</DialogTitle>
+            <DialogDescription>The new workspace becomes your active workspace.</DialogDescription>
+          </DialogHeader>
+          <CreateWorkspaceForm
+            onCreated={(workspace) => {
+              setCreateOpen(false);
+              toast.success(`Workspace "${workspace.name}" created.`);
+            }}
+          />
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
 
 function TopBar({ path, onMenu }: { path: string; onMenu: () => void }) {
   const { user, signOut } = useAuth();
+  const { activeWorkspace } = useWorkspace();
   const email = user?.email ?? "";
   const initials = email.slice(0, 2).toUpperCase() || "?";
   async function handleSignOut() {
@@ -206,7 +258,9 @@ function TopBar({ path, onMenu }: { path: string; onMenu: () => void }) {
         <Menu />
       </Button>
       <nav aria-label="Breadcrumb" className="flex min-w-0 items-center gap-1.5 text-sm">
-        <span className="hidden text-muted-foreground sm:inline">Personal lab</span>
+        <span className="hidden max-w-48 truncate text-muted-foreground sm:inline">
+          {activeWorkspace?.name}
+        </span>
         <span className="hidden text-subtle-foreground sm:inline">/</span>
         <span className="truncate font-medium text-foreground">{current?.label ?? "Page"}</span>
       </nav>

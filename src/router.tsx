@@ -2,6 +2,7 @@ import { Link, Navigate, Outlet, type RouteObject, useLocation, useRoutes } from
 import { useEffect } from "react";
 
 import { AppShell } from "@/components/workspace/app-shell";
+import { FullPageError, FullPageLoader } from "@/components/workspace/full-page-states";
 import { Toaster } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import HomePage from "@/routes/index";
@@ -14,48 +15,54 @@ import SettingsPage from "@/routes/settings";
 import DesignSystemPage from "@/routes/design-system";
 import LoginPage from "@/routes/login";
 import SignupPage from "@/routes/signup";
+import OnboardingPage from "@/routes/onboarding";
 import { useAuth } from "@/lib/auth";
+import { WorkspaceProvider, useWorkspace } from "@/lib/workspace-context";
 
 const pageMetadata: Record<string, { title: string; description: string }> = {
   "/": {
-    title: "Overview — Atelier",
+    title: "Overview — Nodia",
     description: "Recent activity, executions, models and knowledge in your workspace.",
   },
   "/playground": {
-    title: "Playground — Atelier",
+    title: "Playground — Nodia",
     description: "Test models with prompts, parameters and token cost.",
   },
   "/knowledge": {
-    title: "Knowledge — Atelier",
+    title: "Knowledge — Nodia",
     description: "Manage knowledge bases and documents used for retrieval.",
   },
   "/tools": {
-    title: "Tools & Integrations — Atelier",
+    title: "Tools & Integrations — Nodia",
     description: "Connect integrations, tools and MCP servers.",
   },
   "/workflows": {
-    title: "Workflows — Atelier",
+    title: "Workflows — Nodia",
     description: "Automated AI workflows, triggers and runs.",
   },
   "/logs": {
-    title: "Execution logs — Atelier",
+    title: "Execution logs — Nodia",
     description: "Every AI execution with steps, tokens and cost.",
   },
   "/settings": {
-    title: "Settings — Atelier",
+    title: "Settings — Nodia",
     description: "Workspace, API configuration and preferences.",
   },
   "/login": {
-    title: "Sign in — Atelier",
+    title: "Sign in — Nodia",
     description: "Sign in to your workspace.",
   },
   "/signup": {
-    title: "Create account — Atelier",
+    title: "Create account — Nodia",
     description: "Create an account for your workspace.",
   },
   "/design-system": {
-    title: "Design system — Atelier",
+    title: "Design system — Nodia",
     description: "Tokens and components used across the workspace.",
+  },
+  "/onboarding": {
+    title: "Create your workspace — Nodia",
+    description: "Create your first workspace to get started.",
   },
 };
 
@@ -100,15 +107,11 @@ function NotFoundPage() {
   );
 }
 
-function FullPageLoader() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-background">
-      <span className="font-mono text-2xs text-muted-foreground">Loading…</span>
-    </div>
-  );
-}
-
-/** Släpper bara igenom inloggade användare; andra skickas till /login. */
+/**
+ * Släpper bara igenom inloggade användare; andra skickas till /login.
+ * WorkspaceProvider får key={user.id}: byts användaren byggs all workspace-state om
+ * från grunden, så inget från en tidigare användare kan visas.
+ */
 function RequireAuth() {
   const { session, loading } = useAuth();
   const location = useLocation();
@@ -116,6 +119,22 @@ function RequireAuth() {
   if (!session) {
     return <Navigate to="/login" replace state={{ from: location.pathname }} />;
   }
+  return (
+    <WorkspaceProvider key={session.user.id} userId={session.user.id}>
+      <PageMetadata />
+      <Outlet />
+    </WorkspaceProvider>
+  );
+}
+
+/** Appen kräver minst en workspace – annars obligatorisk onboarding. */
+function RequireWorkspace() {
+  const { status, workspaces, error, reload } = useWorkspace();
+  if (status === "loading") return <FullPageLoader />;
+  if (status === "error") {
+    return <FullPageError message={error ?? "Unknown error."} onRetry={reload} />;
+  }
+  if (workspaces.length === 0) return <Navigate to="/onboarding" replace />;
   return <RootLayout />;
 }
 
@@ -135,7 +154,6 @@ function PublicOnly() {
 function RootLayout() {
   return (
     <TooltipProvider delayDuration={200}>
-      <PageMetadata />
       <AppShell>
         <Outlet />
       </AppShell>
@@ -155,14 +173,20 @@ export const appRoutes: RouteObject[] = [
   {
     element: <RequireAuth />,
     children: [
-      { path: "/", element: <HomePage /> },
-      { path: "/playground", element: <PlaygroundPage /> },
-      { path: "/knowledge", element: <KnowledgePage /> },
-      { path: "/tools", element: <ToolsPage /> },
-      { path: "/workflows", element: <WorkflowsPage /> },
-      { path: "/logs", element: <LogsPage /> },
-      { path: "/settings", element: <SettingsPage /> },
-      { path: "/design-system", element: <DesignSystemPage /> },
+      { path: "/onboarding", element: <OnboardingPage /> },
+      {
+        element: <RequireWorkspace />,
+        children: [
+          { path: "/", element: <HomePage /> },
+          { path: "/playground", element: <PlaygroundPage /> },
+          { path: "/knowledge", element: <KnowledgePage /> },
+          { path: "/tools", element: <ToolsPage /> },
+          { path: "/workflows", element: <WorkflowsPage /> },
+          { path: "/logs", element: <LogsPage /> },
+          { path: "/settings", element: <SettingsPage /> },
+          { path: "/design-system", element: <DesignSystemPage /> },
+        ],
+      },
     ],
   },
   { path: "*", element: <NotFoundPage /> },

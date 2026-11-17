@@ -4,7 +4,7 @@ export default function SettingsPage() {
   return (
     <Page>
       <PageHeader
-        eyebrow="Atelier"
+        eyebrow="Nodia"
         title="Settings"
         description="Workspace, API configuration and preferences."
       />
