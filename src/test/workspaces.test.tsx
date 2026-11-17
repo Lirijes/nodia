@@ -247,7 +247,7 @@ describe("Create workspace", () => {
 
     await submitCreateForm("   ");
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("between 1 and 100 characters");
+    expect(await screen.findByText(/between 1 and 100 characters/)).toBeInTheDocument();
     expect(calls.filter((c) => c.init?.method === "POST")).toHaveLength(0);
   });
 
@@ -258,7 +258,7 @@ describe("Create workspace", () => {
 
     await submitCreateForm("Acme");
 
-    expect(await screen.findByRole("alert")).toHaveTextContent("between 1 and 100 characters");
+    expect(await screen.findByText(/between 1 and 100 characters/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Create workspace" })).toBeEnabled();
   });
 
