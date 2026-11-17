@@ -4,7 +4,7 @@ export default function KnowledgePage() {
   return (
     <Page>
       <PageHeader
-        eyebrow="Atelier"
+        eyebrow="Nodia"
         title="Knowledge"
         description="Manage knowledge bases and documents used for retrieval."
       />

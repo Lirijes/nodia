@@ -4,7 +4,7 @@ export default function LogsPage() {
   return (
     <Page>
       <PageHeader
-        eyebrow="Atelier"
+        eyebrow="Nodia"
         title="Execution logs"
         description="Every AI execution with steps, tokens and cost."
       />

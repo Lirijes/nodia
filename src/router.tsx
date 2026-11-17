@@ -21,47 +21,47 @@ import { WorkspaceProvider, useWorkspace } from "@/lib/workspace-context";
 
 const pageMetadata: Record<string, { title: string; description: string }> = {
   "/": {
-    title: "Overview — Atelier",
+    title: "Overview — Nodia",
     description: "Recent activity, executions, models and knowledge in your workspace.",
   },
   "/playground": {
-    title: "Playground — Atelier",
+    title: "Playground — Nodia",
     description: "Test models with prompts, parameters and token cost.",
   },
   "/knowledge": {
-    title: "Knowledge — Atelier",
+    title: "Knowledge — Nodia",
     description: "Manage knowledge bases and documents used for retrieval.",
   },
   "/tools": {
-    title: "Tools & Integrations — Atelier",
+    title: "Tools & Integrations — Nodia",
     description: "Connect integrations, tools and MCP servers.",
   },
   "/workflows": {
-    title: "Workflows — Atelier",
+    title: "Workflows — Nodia",
     description: "Automated AI workflows, triggers and runs.",
   },
   "/logs": {
-    title: "Execution logs — Atelier",
+    title: "Execution logs — Nodia",
     description: "Every AI execution with steps, tokens and cost.",
   },
   "/settings": {
-    title: "Settings — Atelier",
+    title: "Settings — Nodia",
     description: "Workspace, API configuration and preferences.",
   },
   "/login": {
-    title: "Sign in — Atelier",
+    title: "Sign in — Nodia",
     description: "Sign in to your workspace.",
   },
   "/signup": {
-    title: "Create account — Atelier",
+    title: "Create account — Nodia",
     description: "Create an account for your workspace.",
   },
   "/design-system": {
-    title: "Design system — Atelier",
+    title: "Design system — Nodia",
     description: "Tokens and components used across the workspace.",
   },
   "/onboarding": {
-    title: "Create your workspace — Atelier",
+    title: "Create your workspace — Nodia",
     description: "Create your first workspace to get started.",
   },
 };

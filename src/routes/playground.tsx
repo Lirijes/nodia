@@ -4,7 +4,7 @@ export default function PlaygroundPage() {
   return (
     <Page>
       <PageHeader
-        eyebrow="Atelier"
+        eyebrow="Nodia"
         title="Playground"
         description="Test models with prompts, parameters and token cost."
       />

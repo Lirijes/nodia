@@ -4,7 +4,7 @@ export default function DesignSystemPage() {
   return (
     <Page>
       <PageHeader
-        eyebrow="Atelier"
+        eyebrow="Nodia"
         title="Design system"
         description="Tokens and components used across the workspace."
       />

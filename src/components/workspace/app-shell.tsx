@@ -77,7 +77,7 @@ export function Brand() {
         <span className="rounded-[1px] bg-background/40" />
         <span className="rounded-[1px] bg-background" />
       </div>
-      <span className="display text-lg leading-none">Atelier</span>
+      <span className="display text-lg leading-none">Nodia</span>
     </div>
   );
 }

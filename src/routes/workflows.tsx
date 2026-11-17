@@ -4,7 +4,7 @@ export default function WorkflowsPage() {
   return (
     <Page>
       <PageHeader
-        eyebrow="Atelier"
+        eyebrow="Nodia"
         title="Workflows"
         description="Automated AI workflows, triggers and runs."
       />
