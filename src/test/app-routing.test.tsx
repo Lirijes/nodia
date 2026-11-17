@@ -15,6 +15,7 @@ describe("App routing", () => {
     "/design-system",
     "/login",
     "/signup",
+    "/onboarding",
   ])("matches %s", (path) => {
     const matches = matchRoutes(appRoutes, path);
 
