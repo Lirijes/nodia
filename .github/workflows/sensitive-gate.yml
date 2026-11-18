@@ -1,0 +1,211 @@
+# Sensitive change gate – obligatorisk kontroll på PR:er mot main.
+#
+# Blir röd när PR:en rör känsliga filer (se SENSITIVE_PATTERNS) och inte har ett
+# giltigt manuellt godkännande i form av etiketten `approved-sensitive`.
+#
+# Säkerhetsprinciper:
+# - Körs via pull_request_target: workflowet hämtas alltid från main, så en PR kan
+#   inte ändra spärren för att släppa igenom sig själv.
+# - Checkar ALDRIG ut och exekverar ALDRIG kod från PR:en. Endast GitHubs API läses
+#   (fillista, etiketter, händelser och pushtider).
+# - Resultatet beräknas från PR:ens aktuella läge, inte från händelsen som startade
+#   körningen. Samma läge ger alltid samma utfall, oavsett ordning på händelser.
+# - Godkännandet gäller bara om etiketten sattes EFTER den senaste pushen till
+#   PR-branchen (serverns tidsstämpel), och EFTER ett eventuellt byte av basbranch.
+#   Ny kod => godkännandet blir ogiltigt och etiketten tas bort.
+# - Godkännandet måste komma från en människa (inte bot/app) med rollen
+#   admin eller maintain i repot.
+# - Osäkra lägen (saknad data, för många filer, raderad fork) leder till rött.
+name: Sensitive change gate
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, edited, labeled, unlabeled]
+
+# Inga rättigheter som standard; jobbet nedan får exakt det det behöver.
+permissions: {}
+
+# Kör en i taget per PR. Varje körning läser aktuellt läge, så den sista körningen
+# speglar alltid det senaste.
+concurrency:
+  group: sensitive-gate-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  gate:
+    # Namnet är den status check som krävs i rulesetet – byt inte utan att uppdatera det.
+    name: Sensitive change gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read # Repository Activity API (pushtider)
+      pull-requests: write # läsa PR, filer och händelser; ta bort ogiltig etikett
+
+    steps:
+      - name: Evaluate sensitive changes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          LABEL: approved-sensitive
+          # Glob-mönster relativt repots rot. `*` matchar även `/`.
+          # Jämförelsen är skiftlägesokänslig.
+          SENSITIVE_PATTERNS: |
+            # CI, workflows och repo-konfiguration
+            .github/*
+            # Autentisering, sessioner, API-anrop och behörighetsstyrda routes
+            src/lib/auth.tsx
+            src/lib/supabase.ts
+            src/lib/api.ts
+            src/lib/workspace-context.tsx
+            src/lib/workspaces.ts
+            src/router.tsx
+            src/routes/login.tsx
+            src/routes/signup.tsx
+            src/components/workspace/auth-layout.tsx
+            # Databas (hanteras av Lovable/Supabase)
+            supabase/*
+            drizzle/*
+            # Beroenden (supply chain)
+            package.json
+            package-lock.json
+            .npmrc
+            # Bygg- och kvalitetskonfiguration (kan försvaga CI)
+            vite.config.ts
+            vitest.config.ts
+            eslint.config.js
+            tsconfig*.json
+            index.html
+            # Miljövariabler
+            .env*
+        run: |
+          set -euo pipefail
+          shopt -s nocasematch
+
+          summary() { printf '%s\n' "$@" >> "$GITHUB_STEP_SUMMARY"; }
+          fail() {
+            echo "::error title=Sensitive change gate::$1"
+            summary "### ❌ Sensitive change gate" "" "$1"
+            exit 1
+          }
+          to_epoch() { date -u -d "$1" +%s; }
+
+          # --- PR:ens aktuella läge (läses från API:t, inte från händelsen) ---
+          pr_json=$(gh api "repos/$REPO/pulls/$PR_NUMBER")
+          state=$(jq -r '.state' <<<"$pr_json")
+          head_sha=$(jq -r '.head.sha' <<<"$pr_json")
+          head_ref=$(jq -r '.head.ref' <<<"$pr_json")
+          head_repo=$(jq -r '.head.repo.full_name // empty' <<<"$pr_json")
+          changed_files=$(jq -r '.changed_files' <<<"$pr_json")
+          label_present=$(jq --arg l "$LABEL" '[.labels[].name] | index($l) != null' <<<"$pr_json")
+
+          remove_label() {
+            if [[ "$label_present" == "true" ]]; then
+              gh api -X DELETE "repos/$REPO/issues/$PR_NUMBER/labels/$LABEL" >/dev/null \
+                || echo "::warning::Kunde inte ta bort etiketten $LABEL"
+              summary "" "Etiketten \`$LABEL\` har tagits bort."
+            fi
+          }
+
+          if [[ "$state" != "open" ]]; then
+            echo "PR är inte öppen ($state) – inget att kontrollera."
+            exit 0
+          fi
+
+          # Listfunktionen i API:t returnerar högst 3000 filer – större PR:er stoppas.
+          if (( changed_files > 3000 )); then
+            fail "PR:en ändrar $changed_files filer – för många för att kontrollera automatiskt. Dela upp PR:en."
+          fi
+
+          # --- Ändrade filer (inklusive gamla namn vid flytt/namnbyte) ---
+          files=$(gh api --paginate "repos/$REPO/pulls/$PR_NUMBER/files?per_page=100" \
+            --jq '.[] | .filename, (.previous_filename // empty)')
+
+          mapfile -t patterns < <(sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' <<<"$SENSITIVE_PATTERNS" \
+            | grep -v -e '^$' -e '^#')
+
+          hits=()
+          while IFS= read -r f; do
+            [[ -z "$f" ]] && continue
+            for p in "${patterns[@]}"; do
+              # Avsiktligt oquotad: $p är ett glob-mönster.
+              # shellcheck disable=SC2053
+              if [[ "$f" == $p ]]; then
+                hits+=("$f")
+                break
+              fi
+            done
+          done <<<"$files"
+
+          if (( ${#hits[@]} == 0 )); then
+            summary "### ✅ Sensitive change gate" "" "Inga känsliga filer ändras."
+            echo "Inga känsliga filer ändras."
+            exit 0
+          fi
+
+          summary "### Känsliga filer i PR:en" ""
+          for h in "${hits[@]}"; do summary "- \`$h\`"; done
+          summary ""
+          echo "Känsliga filer:"; printf '  %s\n' "${hits[@]}"
+
+          if [[ "$label_present" != "true" ]]; then
+            fail "PR:en ändrar känsliga filer och kräver manuell granskning. En admin/maintainer sätter etiketten \`$LABEL\` efter granskning."
+          fi
+
+          # --- Senaste kodändring: push till PR-branchen (serverns tidsstämpel) ---
+          if [[ -z "$head_repo" ]]; then
+            remove_label
+            fail "PR-branchens repo finns inte längre – kan inte verifiera godkännandet."
+          fi
+          activity=$(gh api -X GET "repos/$head_repo/activity" \
+            -f ref="refs/heads/$head_ref" -F per_page=1 --jq '.[0] // empty' || true)
+          activity_sha=$(jq -r '.after // empty' <<<"${activity:-null}")
+          activity_time=$(jq -r '.timestamp // empty' <<<"${activity:-null}")
+          if [[ -z "$activity_time" || "$activity_sha" != "$head_sha" ]]; then
+            # Pushen är inte registrerad ännu (eller branchen har ändrats igen).
+            # Etiketten lämnas kvar: en ny körning avgör om den fortfarande är giltig.
+            fail "Kan inte fastställa när senaste commit ($head_sha) pushades. Kör om kontrollen om en stund."
+          fi
+          code_changed=$(to_epoch "$activity_time")
+
+          # --- Händelser på PR:en: senaste godkännande och ev. byte av basbranch ---
+          events=$(gh api --paginate --slurp "repos/$REPO/issues/$PR_NUMBER/events?per_page=100" | jq 'add // []')
+          base_changed=$(jq -r '[.[] | select(.event == "base_ref_changed") | .created_at] | sort | last // empty' <<<"$events")
+          if [[ -n "$base_changed" ]] && (( $(to_epoch "$base_changed") > code_changed )); then
+            code_changed=$(to_epoch "$base_changed")
+          fi
+
+          approval=$(jq -c --arg l "$LABEL" \
+            '[.[] | select(.event == "labeled" and .label.name == $l)] | sort_by(.created_at) | last // empty' <<<"$events")
+          if [[ -z "$approval" ]]; then
+            remove_label
+            fail "Hittar ingen händelse för etiketten \`$LABEL\` – sätt den på nytt efter granskning."
+          fi
+
+          approver=$(jq -r '.actor.login // empty' <<<"$approval")
+          approver_type=$(jq -r '.actor.type // empty' <<<"$approval")
+          via_app=$(jq -r '.performed_via_github_app.slug // empty' <<<"$approval")
+          approved_at=$(jq -r '.created_at' <<<"$approval")
+
+          # Godkännandet måste ha getts efter den senaste kodändringen.
+          if (( $(to_epoch "$approved_at") <= code_changed )); then
+            remove_label
+            fail "Koden har ändrats efter godkännandet ($approved_at). Granska de nya ändringarna och sätt \`$LABEL\` igen."
+          fi
+
+          # Endast människor – inte botar eller appar som agerar för en användare.
+          if [[ "$approver_type" != "User" || -n "$via_app" ]]; then
+            remove_label
+            fail "Etiketten sattes av '$approver' (typ: $approver_type${via_app:+, via app: $via_app}). Endast en människa får godkänna."
+          fi
+
+          # Endast admin eller maintain i detta repo.
+          role=$(gh api "repos/$REPO/collaborators/$approver/permission" --jq '.role_name' 2>/dev/null || echo "none")
+          if [[ "$role" != "admin" && "$role" != "maintain" ]]; then
+            remove_label
+            fail "'$approver' har rollen '$role'. Endast admin eller maintain får godkänna känsliga ändringar."
+          fi
+
+          summary "### ✅ Godkänt" "" "Godkänt av **$approver** ($role) $approved_at för commit \`$head_sha\`."
+          echo "Godkänt av $approver ($role) $approved_at."

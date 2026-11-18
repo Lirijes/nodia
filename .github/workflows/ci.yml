@@ -12,10 +12,13 @@ on:
 permissions:
   contents: read
 
-# Avbryt en pågående körning om en ny push kommer till samma branch/PR.
+# Avbryt en äldre körning när en PR uppdateras, men aldrig körningar på main:
+# varje merge till main ska verifieras.
+# Jobbnamnet nedan ("Typecheck, lint, test & build") är en obligatorisk status
+# check i rulesetet för main – byt inte namn utan att uppdatera rulesetet.
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   ci:

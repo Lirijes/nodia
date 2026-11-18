@@ -1,0 +1,13 @@
+{
+  "name": "lovable-branch-protection",
+  "target": "branch",
+  "enforcement": "active",
+  "bypass_actors": [],
+  "conditions": {
+    "ref_name": {
+      "include": ["refs/heads/feature/lovable"],
+      "exclude": []
+    }
+  },
+  "rules": [{ "type": "deletion" }, { "type": "non_fast_forward" }]
+}

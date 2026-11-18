@@ -1,0 +1,77 @@
+# Auto PR – skapar en draft-PR mot main när en feature-branch pushas.
+#
+# PR:en skapas med GitHub-appens token (inte GITHUB_TOKEN). Annars skulle
+# GitHub inte starta CI och Sensitive change gate för den nya PR:en.
+# Auto-merge slås på först när PR:en markeras "Ready for review" (se auto-merge.yml).
+name: Auto PR
+
+on:
+  push:
+    branches: ["feature/**"]
+
+permissions: {}
+
+concurrency:
+  group: auto-pr-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  open-draft-pr:
+    name: Open draft PR
+    # Hoppa över när branchen raderas.
+    if: ${{ !github.event.deleted }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.PR_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.PR_BOT_PRIVATE_KEY }}
+          # Token begränsas till det som behövs här, även om appen har mer.
+          permission-contents: read
+          permission-pull-requests: write
+
+      - name: Create draft PR if none is open
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          BRANCH: ${{ github.ref_name }}
+          COMMIT_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+
+          open_prs=$(gh pr list --repo "$REPO" --head "$BRANCH" --base main --state open \
+            --json number --jq 'length')
+          if [[ "$open_prs" != "0" ]]; then
+            echo "Det finns redan en öppen PR för $BRANCH – inget att göra."
+            exit 0
+          fi
+
+          # Skapa ingen tom PR (t.ex. ny branch utan ändringar eller efter en synk från main).
+          changed=$(gh api "repos/$REPO/compare/main...$BRANCH" --jq '.files | length')
+          if [[ "$changed" == "0" ]]; then
+            echo "$BRANCH har inga filändringar mot main – ingen PR skapas."
+            exit 0
+          fi
+
+          title=$(head -n1 <<<"${COMMIT_MESSAGE:-}" | cut -c1-120)
+          [[ -z "$title" ]] && title="$BRANCH"
+
+          body=$(cat <<'EOF'
+          Skapad automatiskt vid push till en feature-branch.
+
+          **Flöde**
+          1. CI och *Sensitive change gate* körs vid varje push.
+          2. Markera PR:en som **Ready for review** när den är klar – då aktiveras auto-merge (squash).
+          3. Rör PR:en känsliga filer krävs etiketten `approved-sensitive` från admin/maintainer.
+             Etiketten blir ogiltig vid varje ny push.
+
+          Se `CI.md` för detaljer.
+          EOF
+          )
+
+          gh pr create --repo "$REPO" --base main --head "$BRANCH" --draft \
+            --title "$title" --body "$body"
