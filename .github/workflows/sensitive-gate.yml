@@ -64,7 +64,7 @@ jobs:
             src/routes/login.tsx
             src/routes/signup.tsx
             src/components/workspace/auth-layout.tsx
-            # Databas (hanteras av Lovable/Supabase)
+            # Databas (Supabase)
             supabase/*
             drizzle/*
             # Beroenden (supply chain)
