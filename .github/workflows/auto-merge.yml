@@ -1,0 +1,68 @@
+# Auto-merge – slår på auto-merge (squash) när en PR markeras "Ready for review"
+# och stänger av den igen om PR:en görs om till draft.
+#
+# Auto-merge betyder att GitHub mergar först när ALLA obligatoriska kontroller i
+# rulesetet för main är gröna (CI + Sensitive change gate). Workflowet kan inte
+# kringgå dem: appen har inga bypass-rättigheter.
+#
+# Körs via pull_request_target så att workflowet alltid hämtas från main. Ingen
+# kod från PR:en checkas ut eller körs.
+name: Auto-merge
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, ready_for_review, converted_to_draft]
+
+permissions: {}
+
+concurrency:
+  group: auto-merge-${{ github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  configure:
+    name: Configure auto-merge
+    # Endast PR:er från branches i detta repo (kräver skrivrätt). PR:er från
+    # forkar får aldrig auto-merge.
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Create GitHub App token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.PR_BOT_CLIENT_ID }}
+          private-key: ${{ secrets.PR_BOT_PRIVATE_KEY }}
+          # contents:write krävs för att GitHub ska kunna utföra mergen åt appen.
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Enable or disable auto-merge
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          REPO: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          # Läs aktuellt läge – händelsen kan vara inaktuell.
+          read -r state draft < <(gh pr view "$PR_NUMBER" --repo "$REPO" \
+            --json state,isDraft --jq '"\(.state) \(.isDraft)"')
+
+          if [[ "$state" != "OPEN" ]]; then
+            echo "PR #$PR_NUMBER är inte öppen ($state)."
+            exit 0
+          fi
+
+          if [[ "$draft" == "true" ]]; then
+            gh pr merge "$PR_NUMBER" --repo "$REPO" --disable-auto 2>/dev/null \
+              && echo "Auto-merge avstängd (PR är draft)." \
+              || echo "PR är draft – auto-merge är inte aktiv."
+            exit 0
+          fi
+
+          gh pr merge "$PR_NUMBER" --repo "$REPO" --auto --squash
+          echo "Auto-merge (squash) aktiverad för PR #$PR_NUMBER."
